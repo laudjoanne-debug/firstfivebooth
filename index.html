@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FIRSTFIVEBOOTH - Character Pose Challenge Photobooth</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Photobooth Styles -->
+  <link rel="stylesheet" href="static/css/style.css">
+
+  <!-- MediaPipe Pose JS (Loaded via CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+  <!-- Poses Catalog Manifest (Ensures pure HTML works seamlessly) -->
+  <script src="static/js/poses_data.js"></script>
+</head>
+<body>
+
+  <!-- Fullscreen Shutter Flash Effect -->
+  <div id="cameraFlash" class="camera-flash"></div>
+
+  <!-- Insecure Origin Helper Banner (Shows if opened on IP instead of localhost) -->
+  <div id="secureContextBanner" class="secure-context-banner" style="display: none;">
+    <span>⚠️ Browsers require <strong>http://localhost:5000</strong> to allow camera access.</span>
+    <button id="switchLocalhostBtn" class="banner-btn">Switch to localhost:5000</button>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="logo-container">
+      <div class="logo-badge">📸</div>
+      <div class="logo-text">
+        <h1>FIRSTFIVEBOOTH</h1>
+        <span>POSE CHALLENGE</span>
+      </div>
+    </div>
+    
+    <div class="header-controls">
+      <button id="toggleGuideBtn" class="header-btn" title="Toggle Target Skeleton Overlay">Ghost Guide: ON</button>
+      <button id="toggleAudioBtn" class="header-btn" title="Toggle Audio Sound Cues">Sound: ON</button>
+      
+      <select id="difficultySelect" class="difficulty-select" title="Match Sensitivity Threshold">
+        <option value="70">Chill (70%)</option>
+        <option value="80" selected>Normal (80%)</option>
+        <option value="88">Pro (88%)</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="main-content">
+
+    <!-- 1. START SCREEN -->
+    <section id="startSection" class="app-section active">
+      <div class="start-hero">
+        <div class="hero-badge">✨ AI CHARACTER PHOTOBOOTH ✨</div>
+        <h1 class="hero-title">FIRSTFIVEBOOTH</h1>
+        <p class="hero-subtitle">Imitate the Pose. Capture the Moment.</p>
+
+        <!-- Preview Character Gallery -->
+        <div class="preview-cards-banner">
+          <div class="preview-photo-card" style="--rot: -7deg;">
+            <img src="static/poses/33a5afdaa476a9c65ae13fae9765cd74.jpg" alt="Pose 1">
+          </div>
+          <div class="preview-photo-card" style="--rot: 2deg;">
+            <img src="static/poses/01f0e7daa741af6b5ad6cb7b88c57cdc.jpg" alt="Pose 2">
+          </div>
+          <div class="preview-photo-card" style="--rot: 8deg;">
+            <img src="static/poses/05b37263c3a1b34c702583c9c9ffe664.jpg" alt="Pose 3">
+          </div>
+        </div>
+
+        <button id="startPhotoboothBtn" class="btn-primary-glow">
+          <span>START PHOTOBOOTH</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+
+        <div class="how-it-works">
+          <div class="step-card">
+            <div class="step-num">01</div>
+            <h4>Imitate The Character</h4>
+            <p>A fun character pose is randomly selected. Match their expression and stance.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">02</div>
+            <h4>Real-time Pose AI</h4>
+            <p>MediaPipe tracks your head, shoulders, arms, and joints live on your webcam.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">03</div>
+            <h4>Auto Snap & Strip</h4>
+            <p>Hit the required pose match or click to capture your 3-photo challenge strip!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. CAPTURE MODE SELECTION SCREEN -->
+    <section id="modeSelectSection" class="app-section">
+      <div class="mode-select-container">
+        <div class="section-header">
+          <div class="hero-badge">⚙️ CAPTURE PREFERENCE</div>
+          <h2>Capture Mode Selection</h2>
+          <p>Choose how you want your camera to snap each pose shot</p>
+        </div>
+
+        <div class="mode-cards-grid">
+          <!-- Option 1: 3-2-1 Countdown -->
+          <div id="modeCardCountdown" class="mode-card active" data-mode="countdown">
+            <div class="mode-check-badge">✓</div>
+            <div class="mode-icon">⏱️</div>
+            <h3>3-2-1 Countdown</h3>
+            <p>Gives you a 3-second animated countdown before snapping. Perfect for holding your pose!</p>
+            <span class="mode-tag">RECOMMENDED</span>
+          </div>
+
+          <!-- Option 2: Snap Now -->
+          <div id="modeCardSnap" class="mode-card" data-mode="snap">
+            <div class="mode-check-badge">✓</div>
+            <div class="mode-icon">⚡</div>
+            <h3>Snap Now</h3>
+            <p>Instant capture as soon as you hit the pose (or click). Zero delay, snap immediately!</p>
+            <span class="mode-tag">INSTANT</span>
+          </div>
+        </div>
+
+        <button id="modeContinueBtn" class="btn-primary-glow" style="margin-top: 2.2rem;">
+          <span>CONTINUE</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- 3. PHOTOBOOTH ARENA SCREEN -->
+    <section id="arenaSection" class="app-section">
+      <!-- Session Top Bar -->
+      <div class="photobooth-top-bar">
+        <div class="session-progress">
+          <span id="sessionProgressText" class="progress-text">POSE 1 / 3</span>
+          <div class="progress-pills">
+            <div id="pill0" class="pill-dot active"></div>
+            <div id="pill1" class="pill-dot"></div>
+            <div id="pill2" class="pill-dot"></div>
+          </div>
+        </div>
+
+        <div class="arena-controls">
+          <!-- Active Mode Toggle Pill -->
+          <button id="modeToggleBtn" class="mode-pill-toggle" title="Click to toggle between Countdown and Instant Snap">
+            ⏱️ 3-2-1 Countdown
+          </button>
+
+          <!-- Camera device select -->
+          <select id="cameraDeviceSelect" class="camera-select" title="Switch Camera Device">
+            <option value="">Default Camera</option>
+          </select>
+
+          <button id="shufflePoseBtn" class="header-btn" title="Pick another random pose">
+            🔄 Switch Pose
+          </button>
+          <button id="manualSnapBtn" class="manual-snap-btn" title="Take photo immediately">
+            ⚡ Snap Now
+          </button>
+        </div>
+      </div>
+
+      <!-- Split Layout: Reference vs Camera -->
+      <div class="arena-grid">
+        <!-- Reference Character Card -->
+        <div class="arena-card">
+          <div class="card-header">
+            <h3>🎭 IMITATE THIS POSE</h3>
+            <span class="card-badge">REFERENCE</span>
+          </div>
+          <div class="card-media-wrapper">
+            <img id="referenceImage" class="ref-image" src="" alt="Reference Pose">
+            <div class="pose-info-overlay">
+              <div id="poseTitle" class="pose-title">Pose Challenge</div>
+              <div id="poseDesc" class="pose-desc">Strike the pose to match the character!</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Camera Card -->
+        <div class="arena-card">
+          <div class="card-header">
+            <h3>📹 YOUR CAMERA</h3>
+            <span id="aiStatusBadge" class="card-badge">CONNECTING...</span>
+          </div>
+          <div class="card-media-wrapper">
+            <video id="webcamVideo" class="webcam-video" autoplay playsinline muted></video>
+            <canvas id="skeletonCanvas" class="skeleton-canvas"></canvas>
+
+            <!-- Camera Loading Overlay -->
+            <div id="cameraLoadingOverlay" class="camera-status-card">
+              <div class="status-spinner"></div>
+              <div class="status-card-title">Starting Camera...</div>
+              <div class="status-card-desc">Please click "Allow" if your browser prompts for webcam permission.</div>
+            </div>
+
+            <!-- Camera Error / Blocked Overlay -->
+            <div id="cameraErrorOverlay" class="camera-status-card" style="display: none;">
+              <div style="font-size: 3rem;">📷</div>
+              <div id="cameraErrorTitle" class="status-card-title">Camera Not Available</div>
+              <div id="cameraErrorDesc" class="status-card-desc">Unable to access your webcam.</div>
+              <div class="status-card-actions">
+                <button id="retryCameraBtn" class="btn-card-action">🔄 Retry Camera</button>
+                <button id="useDemoCameraBtn" class="btn-card-action secondary">🎮 Use Demo Mode</button>
+              </div>
+            </div>
+
+            <!-- Real-time Similarity Score Pill -->
+            <div class="camera-status-overlay">
+              <div id="matchPill" class="match-meter-pill">
+                <span>MATCH:</span>
+                <div class="meter-track">
+                  <div id="meterFill" class="meter-fill"></div>
+                </div>
+                <span id="matchScoreText" class="match-score-text">0%</span>
+              </div>
+            </div>
+
+            <!-- "POSE MATCHED!" Banner -->
+            <div id="matchBanner" class="match-banner">
+              ★ POSE MATCHED! ★
+            </div>
+
+            <!-- Big 3-2-1 Countdown Overlay -->
+            <div id="countdownOverlay" class="countdown-overlay">
+              <div id="countdownNumber" class="countdown-number">3</div>
+            </div>
+
+            <!-- Quick Shutter Snap Button (visible in Snap Now mode) -->
+            <div id="cameraShutterBar" class="camera-shutter-bar" style="display: none;">
+              <button id="bigShutterBtn" class="btn-big-shutter">
+                <span>📸 SNAP PHOTO</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="arena-footer">
+            <span style="font-size: 0.82rem; color: var(--text-muted);">
+              💡 Stand where your shoulders and arms are visible in frame!
+            </span>
+            <button id="reconnectCameraBtn" class="header-btn" style="padding: 0.3rem 0.7rem; font-size: 0.78rem;">
+              🎥 Reset Cam
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. PHOTO REVIEW SCREEN -->
+    <section id="reviewSection" class="app-section">
+      <div class="review-container">
+        <div class="section-header">
+          <h2>PHOTO REVIEW</h2>
+          <p>Check your 3 pose shots! You can retake any photo before building your photostrip.</p>
+        </div>
+
+        <div class="review-grid">
+          <!-- Photo 1 -->
+          <div id="reviewCard0" class="review-photo-card">
+            <div class="photo-preview-box">
+              <img src="" alt="Photo 1">
+            </div>
+            <div class="photo-card-body">
+              <h4>PHOTO 1</h4>
+              <button class="btn-retake">🔄 Retake</button>
+            </div>
+          </div>
+
+          <!-- Photo 2 -->
+          <div id="reviewCard1" class="review-photo-card">
+            <div class="photo-preview-box">
+              <img src="" alt="Photo 2">
+            </div>
+            <div class="photo-card-body">
+              <h4>PHOTO 2</h4>
+              <button class="btn-retake">🔄 Retake</button>
+            </div>
+          </div>
+
+          <!-- Photo 3 -->
+          <div id="reviewCard2" class="review-photo-card">
+            <div class="photo-preview-box">
+              <img src="" alt="Photo 3">
+            </div>
+            <div class="photo-card-body">
+              <h4>PHOTO 3</h4>
+              <button class="btn-retake">🔄 Retake</button>
+            </div>
+          </div>
+        </div>
+
+        <button id="continueToCollageBtn" class="btn-primary-glow">
+          <span>CREATE COLLAGE STRIP</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- 5. FINAL COLLAGE & DOWNLOAD SCREEN -->
+    <section id="collageSection" class="app-section">
+      <div class="section-header" style="margin-top: 1rem;">
+        <h2>YOUR FIRSTFIVEBOOTH STRIP</h2>
+        <p>Your photobooth memories are ready to save!</p>
+      </div>
+
+      <div class="collage-screen-wrapper">
+        <!-- Canvas Preview Area -->
+        <div class="collage-preview-area">
+          <div class="photostrip-canvas-container">
+            <canvas id="photostripCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Sidebar Actions -->
+        <div class="collage-actions-sidebar">
+          <h3>Customise & Download</h3>
+          
+          <div>
+            <div class="theme-selector-label">Border Theme</div>
+            <div class="theme-options">
+              <button class="theme-btn theme-classic active" data-theme="classic" title="Classic White"></button>
+              <button class="theme-btn theme-noir" data-theme="noir" title="Noir Dark"></button>
+              <button class="theme-btn theme-pink" data-theme="pink" title="Candy Pink"></button>
+              <button class="theme-btn theme-sunset" data-theme="sunset" title="Sunset Gold"></button>
+            </div>
+          </div>
+
+          <div class="action-buttons-group">
+            <button id="downloadCollageBtn" class="btn-download">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>DOWNLOAD PHOTO</span>
+            </button>
+
+            <button id="tryAgainBtn" class="btn-secondary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+              </svg>
+              <span>TRY AGAIN</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Interactive Toast Notification -->
+  <div id="toastNotice" class="toast-notice">Notice</div>
+
+  <!-- 3-2-1 Countdown Add-on (must load BEFORE photobooth.js) -->
+  <script src="static/countdown.js"></script>
+
+  <!-- Photobooth Script -->
+  <script src="static/js/photobooth.js"></script>
+</body>
+</html>
